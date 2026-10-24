@@ -1,7 +1,4 @@
 
-import io
-from contextlib import redirect_stdout
-
 from uagents import Agent, Context, Protocol
 from uagents_core.contrib.protocols.chat import (
     ChatAcknowledgement,
@@ -11,11 +8,10 @@ from uagents_core.contrib.protocols.chat import (
     chat_protocol_spec,
 )
 
-from github_search import search_developers
-
+from opportunity_search import search_opportunities
 
 agent = Agent(
-    name="gitlink_developer_discovery",
+    name="gitlink_opportunity_agent",
     seed="gitlink-local-demo-change-this-seed-before-deployment",
     port=8001,
     mailbox=True,
@@ -33,38 +29,48 @@ async def handle_message(ctx: Context, sender: str, msg: ChatMessage):
     )
 
     user_text = " ".join(
-        item.text
-        for item in msg.content
+        item.text for item in msg.content
         if isinstance(item, TextContent)
     )
 
-    skills = [
-        skill for skill in [
-            "python", "fastapi", "machine learning",
-            "java", "sql", "react", "docker",
-            "kubernetes", "django", "flask",
-        ]
-        if skill in user_text.lower()
+    keywords = [
+        word.strip(".,!?;:").lower()
+        for word in user_text.split()
+        if len(word.strip(".,!?;:")) > 2
     ]
 
-    if not skills:
+    if not keywords:
         reply = (
-            "Tell me which skills you need. For example: "
-            "Find Python developers with FastAPI experience."
+            "Tell me what you're looking for, such as "
+            "'Python internship' or 'remote data analyst job'."
         )
     else:
         try:
-            output = io.StringIO()
-            with redirect_stdout(output):
-                search_developers(skills, limit=10)
+            results = search_opportunities(keywords, limit=5)
 
-            results = output.getvalue().strip()
-            reply = results[:10000] if results else (
-                "No matching repositories found. Try other skills."
-            )
+            if not results:
+                reply = (
+                    "I couldn't find matching listings in the "
+                    "available sources. Try different keywords."
+                )
+            else:
+                lines = ["Here are opportunities matching your request:"]
+                for i, job in enumerate(results, start=1):
+                    lines.append(
+                        f"\n{i}. {job['title']}\n"
+                        f"Company: {job['company']}\n"
+                        f"Location: {job['location']}\n"
+                        f"Source: {job['source']}\n"
+                        f"Matched keywords: "
+                        f"{', '.join(job['matched_terms'])}\n"
+                        f"Link: {job['url']}\n"
+                        "Please check the original listing for "
+                        "eligibility and deadline."
+                    )
+                reply = "\n".join(lines)[:10000]
         except Exception:
-            ctx.logger.exception("GitHub search failed")
-            reply = "GitHub search failed. Please try again."
+            ctx.logger.exception("Opportunity search failed")
+            reply = "Opportunity search failed. Please try again."
 
     await ctx.send(
         sender,
@@ -89,4 +95,5 @@ agent.include(chat_proto, publish_manifest=True)
 
 if __name__ == "__main__":
     agent.run()
+
 

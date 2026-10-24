@@ -90,8 +90,3 @@ agent.include(chat_proto, publish_manifest=True)
 if __name__ == "__main__":
     agent.run()
 
-@chat_proto.on_message(ChatAcknowledgement)
-async def handle_acknowledgement(
-    ctx: Context, sender: str, msg: ChatAcknowledgement
-):
-    ctx.logger.info("Received chat acknowledgement from %s", sender)

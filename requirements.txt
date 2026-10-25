@@ -1,2 +1,4 @@
-uagents==0.25.5
-requests
+uagents>=0.25.5
+uagents-core>=0.4.12
+requests>=2.31.0
+pydantic>=2.0.0
